@@ -36,7 +36,7 @@ Return only the JSON object. No explanation.`;
  * @returns {Promise<{from, to, tasks, constraints}>}
  */
 export async function extractRequirements(userInput, geminiApiKey) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`;
 
   const body = {
     system_instruction: {
