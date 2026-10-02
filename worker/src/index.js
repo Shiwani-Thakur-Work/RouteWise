@@ -120,7 +120,11 @@ async function handlePlan(request, env, corsHeaders) {
   try {
     baseline = await getRoute([startCoord, destCoord], osrmBaseUrl);
   } catch (err) {
-    return json({ error: 'Could not calculate your base route. Please try again.' }, corsHeaders, 502);
+    return json({ 
+      error: 'Could not calculate your base route. Please try again.',
+      detail: err.message,
+      debug: { from: startCoord, to: destCoord }
+    }, corsHeaders, 502);
   }
 
   // ── Step 4: Find candidates + score for each task ───────────────────────

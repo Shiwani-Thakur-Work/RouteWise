@@ -4,7 +4,7 @@ compatibility_date = "2024-09-23"
 
 [vars]
 ENVIRONMENT = "development"
-OSRM_BASE_URL = "https://router.project-osrm.org"
+OSRM_BASE_URL = "https://routing.openstreetmap.de/routed-car"
 NOMINATIM_USER_AGENT = "RouteWise/0.1"
 
 # Uncomment and fill in after running: wrangler d1 create routewise
