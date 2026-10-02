@@ -1,0 +1,14 @@
+name = "routewise-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[vars]
+ENVIRONMENT = "development"
+OSRM_BASE_URL = "https://router.project-osrm.org"
+NOMINATIM_USER_AGENT = "RouteWise/0.1"
+
+# Uncomment and fill in after running: wrangler d1 create routewise
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "routewise"
+# database_id = "YOUR_DATABASE_ID_HERE"

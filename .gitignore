@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env.local
+.env
+worker/.dev.vars
+worker/node_modules/
+*.log
+.wrangler/
+docs/
+docs
