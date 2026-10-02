@@ -24,7 +24,7 @@ const ALLOWED_ORIGINS = [
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const corsOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    const corsOrigin = origin || '*';
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': corsOrigin,
@@ -90,7 +90,7 @@ async function handlePlan(request, env, corsHeaders) {
     // If it's a 503 or Gemini API error, bubble it up so the user knows it's an API issue, not a bad prompt
     const userMessage = err.message.includes('503') || err.message.includes('overloaded') 
       ? 'The AI model is currently experiencing high demand. Please try again in a moment.' 
-      : 'Could not understand your request. Try: "From Saket to Cyber Hub. Pharmacy, gift, vegetarian dinner. Max 25 min extra."';
+      : `Could not understand your request. Technical detail: ${err.message}`;
       
     return json({
       error: userMessage,
