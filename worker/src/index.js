@@ -138,16 +138,18 @@ async function handlePlan(request, env, corsHeaders) {
   for (const task of tasks) {
     let candidates;
     try {
-      candidates = await searchNearby(midpoint.lat, midpoint.lng, task.category, 3000);
+      candidates = await searchNearby(midpoint.lat, midpoint.lng, task.category, 5000, userAgent);
+      await sleep(1100); // Nominatim rate limit: 1 req/s
     } catch (err) {
-      console.error(`Overpass error for ${task.category}:`, err);
+      console.error(`Nominatim search error for ${task.category}:`, err);
       candidates = [];
     }
 
     if (candidates.length === 0) {
-      // Widen search radius to 5km
+      // Widen search radius to 10km
       try {
-        candidates = await searchNearby(midpoint.lat, midpoint.lng, task.category, 5000);
+        candidates = await searchNearby(midpoint.lat, midpoint.lng, task.category, 10000, userAgent);
+        await sleep(1100);
       } catch {
         candidates = [];
       }

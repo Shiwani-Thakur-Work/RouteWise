@@ -1,23 +1,25 @@
 /**
  * placeFinder.js
- * Geospatial provider — currently implemented with Nominatim + OSM Overpass.
- * All methods conform to IGeospatialProvider interface so providers can be
- * swapped without touching business logic.
+ * Geospatial provider — Nominatim for geocoding + place search.
+ * Overpass API is blocked from Cloudflare Worker IPs, so we use
+ * Nominatim's structured search for nearby place discovery.
  *
  * Nominatim policy: max 1 req/s, User-Agent required, attribution required.
  */
 
-/** Map internal category names to OSM amenity/shop tags */
-const CATEGORY_TO_OSM = {
-  pharmacy:       { key: 'amenity',  value: 'pharmacy' },
-  restaurant:     { key: 'amenity',  value: 'restaurant' },
-  grocery:        { key: 'shop',     value: 'supermarket' },
-  gift_shop:      { key: 'shop',     value: 'gift' },
-  coffee:         { key: 'amenity',  value: 'cafe' },
-  atm:            { key: 'amenity',  value: 'atm' },
-  petrol_station: { key: 'amenity',  value: 'fuel' },
-  other:          { key: 'amenity',  value: 'shop' }
+/** Map internal category names to Nominatim amenity/shop query params */
+const CATEGORY_TO_NOMINATIM = {
+  pharmacy:       { amenity: 'pharmacy' },
+  restaurant:     { amenity: 'restaurant' },
+  grocery:        { shop: 'supermarket' },
+  gift_shop:      { shop: 'gift' },
+  coffee:         { amenity: 'cafe' },
+  atm:            { amenity: 'atm' },
+  petrol_station: { amenity: 'fuel' },
+  other:          { amenity: 'shop' }
 };
+
+const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
 /**
  * Geocode a place name to lat/lng using Nominatim.
@@ -26,12 +28,13 @@ const CATEGORY_TO_OSM = {
  * @returns {Promise<{lat: number, lng: number, displayName: string}>}
  */
 export async function geocode(address, userAgent) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1`;
+  const url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1`;
 
   const res = await fetch(url, {
     headers: {
       'User-Agent': userAgent,
-      'Accept-Language': 'en'
+      'Accept-Language': 'en',
+      'Accept': 'application/json'
     }
   });
 
@@ -50,46 +53,61 @@ export async function geocode(address, userAgent) {
 }
 
 /**
- * Search for places of a given category near a lat/lng point using OSM Overpass.
+ * Search for places of a given category near a lat/lng point using Nominatim.
+ * Uses a viewbox bounding box around the point for spatial filtering.
+ *
  * @param {number} lat
  * @param {number} lng
  * @param {string} category - internal category name
- * @param {number} radiusM - search radius in metres
+ * @param {number} radiusM - search radius in metres (used to compute viewbox)
+ * @param {string} userAgent
  * @returns {Promise<Array<{id, name, lat, lng, tags}>>}
  */
-export async function searchNearby(lat, lng, category, radiusM = 2000) {
-  const osmTag = CATEGORY_TO_OSM[category] || CATEGORY_TO_OSM.other;
+export async function searchNearby(lat, lng, category, radiusM = 3000, userAgent = 'RouteWise/0.1') {
+  const tagMap = CATEGORY_TO_NOMINATIM[category] || CATEGORY_TO_NOMINATIM.other;
+  const tagKey = Object.keys(tagMap)[0];   // 'amenity' or 'shop'
+  const tagVal = tagMap[tagKey];
 
-  const query = `
-[out:json][timeout:15];
-(
-  node["${osmTag.key}"="${osmTag.value}"](around:${radiusM},${lat},${lng});
-  way["${osmTag.key}"="${osmTag.value}"](around:${radiusM},${lat},${lng});
-);
-out center 15;
-  `.trim();
+  // Convert radius to rough degree offset (1 deg lat ≈ 111km)
+  const degOffset = radiusM / 111000;
+  const viewbox = `${lng - degOffset},${lat + degOffset},${lng + degOffset},${lat - degOffset}`;
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`
+  // Nominatim structured query for amenity/shop type
+  const params = new URLSearchParams({
+    format: 'json',
+    limit: '15',
+    addressdetails: '0',
+    extratags: '1',
+    viewbox,
+    bounded: '1',
+    [tagKey]: tagVal
   });
 
-  if (!res.ok) throw new Error(`Overpass API error ${res.status}`);
+  const url = `${NOMINATIM_BASE}/search?${params}`;
+
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': userAgent,
+      'Accept-Language': 'en',
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!res.ok) throw new Error(`Nominatim search error ${res.status}`);
 
   const data = await res.json();
 
-  return data.elements
-    .filter(el => el.tags && el.tags.name) // only named places
+  return data
+    .filter(el => el.display_name) // has a name
     .map(el => ({
-      id: String(el.id),
-      name: el.tags.name,
-      lat: el.lat ?? el.center?.lat,
-      lng: el.lon ?? el.center?.lon,
-      tags: el.tags
+      id: String(el.place_id),
+      name: el.name || el.display_name.split(',')[0],
+      lat: parseFloat(el.lat),
+      lng: parseFloat(el.lon),
+      tags: { [tagKey]: tagVal, ...el.extratags }
     }))
     .filter(p => p.lat && p.lng)
-    .slice(0, 10); // cap at 10 candidates per task
+    .slice(0, 10);
 }
 
 /**
