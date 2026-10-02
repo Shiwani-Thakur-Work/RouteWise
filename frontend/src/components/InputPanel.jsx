@@ -6,9 +6,9 @@
 import { useState } from 'react';
 
 const EXAMPLE_PROMPTS = [
-  "From Saket to Cyber Hub. Need pharmacy, gift under ₹1500, vegetarian dinner. Max 25 min extra.",
-  "Connaught Place to Noida Sector 18. Grocery, ATM, and coffee. Keep it under 20 minutes.",
-  "South Ex to IGI Airport. Need a pharmacy and a quick dinner. Max 30 min detour."
+  "From Saket, Delhi to Cyber Hub, Gurgaon. Need pharmacy, gift under ₹1500, vegetarian dinner. Max 25 min extra.",
+  "Connaught Place, Delhi to Noida Sector 18. Grocery, ATM, and coffee. Keep it under 20 minutes.",
+  "South Ex, Delhi to IGI Airport, Delhi. Need a pharmacy and a quick dinner. Max 30 min detour."
 ];
 
 export default function InputPanel({ onSubmit, loading }) {
@@ -37,7 +37,7 @@ export default function InputPanel({ onSubmit, loading }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           placeholder={
-            "I'm going from Saket to Cyber Hub.\nNeed: pharmacy, gift under ₹1500, vegetarian dinner.\nMax 25 min extra travel."
+            "I'm going from Saket, Delhi to Cyber Hub, Gurgaon.\nNeed: pharmacy, gift under ₹1500, vegetarian dinner.\nMax 25 min extra travel."
           }
           disabled={loading}
           onKeyDown={e => {
